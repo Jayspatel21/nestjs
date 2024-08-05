@@ -1,1 +1,90 @@
+# name: Dev Branch - Build, Push Docker Image
 
+# on:
+#   push:
+#     branches:
+#       - main
+
+# env:
+#   DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+#   DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+# jobs:
+#   build-and-push:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v2
+
+#       - name: Login to Docker Hub
+#         uses: docker/login-action@v2
+#         with:
+#           username: ${{ env.DOCKER_USERNAME }}
+#           password: ${{ env.DOCKER_PASSWORD }}
+
+#       - name: Set up Docker Buildx
+#         uses: docker/setup-buildx-action@v2
+
+#       - name: Build Docker image
+#         run: |
+#           IMAGE_TAG=${{ github.ref_name }}
+#           docker build --no-cache -t node-api-nest:${IMAGE_TAG} .
+
+#       - name: Tag Docker image
+#         run: docker tag node-api-nest:${{ github.ref_name }} ${{ env.DOCKER_USERNAME }}/node-api-nest:${{ github.ref_name }}
+
+#       - name: Push Docker image
+#         run: docker push ${{ env.DOCKER_USERNAME }}/node-api-nest:${{ github.ref_name }}
+
+#       - name: Tag Docker image with build number
+#         run: |
+#           BUILD_NUMBER=${{ github.run_number }}
+#           docker tag node-api-nest:${{ github.ref_name }} ${{ env.DOCKER_USERNAME }}/node-api-nest:${{ github.ref_name }}-${BUILD_NUMBER}
+#           docker push ${{ env.DOCKER_USERNAME }}/node-api-nest:${{ github.ref_name }}-${BUILD_NUMBER}
+
+
+name: Build and Push Docker Image to Docker Hub
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/node-api-nest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Tag Docker image with build number
+        run: |
+          BUILD_NUMBER=${{ github.run_number }}
+          IMAGE_TAG=${{ steps.meta.outputs.tags }}
+          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/node-api-nest:${IMAGE_TAG} ${{ secrets.DOCKERHUB_USERNAME }}/node-api-nest:${{ github.ref_name }}-${BUILD_NUMBER}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/node-api-nest:${{ github.ref_name }}-${BUILD_NUMBER}
